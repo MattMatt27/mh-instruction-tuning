@@ -718,6 +718,156 @@ def get_scale_plot_data(scale_id):
     return jsonify(formatted_data)
 
 
+@app.route('/api/scale/<scale_id>/performance-table')
+def get_scale_performance_table(scale_id):
+    """Get comprehensive performance table for all model/prompt/hyperparameter combinations"""
+    
+    # Get scale and expert data
+    scale = Scale.query.get_or_404(scale_id)
+    expert_items = ScaleItem.query.filter_by(scale_id=scale_id).all()
+    
+    # Build expert data structure
+    expert_means = {}
+    for item in expert_items:
+        item_key = f"{int(item.prompt_id)}{item.response_id.upper()}"
+        if item.expert_mean is not None:
+            expert_means[item_key] = item.expert_mean
+    
+    # Get all results for this scale with all relevant fields
+    results = db.session.query(
+        Result.model,
+        Result.temperature,
+        Result.top_p,
+        Result.max_tokens,
+        Result.message_prompt_id,
+        Result.system_prompt_id,
+        Result.scale_prompt_id,
+        Result.scale_response_id,
+        Result.score,
+        Result.repeat_number
+    ).join(Experiment).filter(
+        Experiment.scale_id == scale_id
+    ).all()
+    
+    # Get prompt names for display
+    prompt_names = {}
+    prompts = db.session.query(Prompt.id, Prompt.name, Prompt.prompt_type).all()
+    for prompt in prompts:
+        prompt_names[str(prompt.id)] = f"{prompt.name} ({prompt.prompt_type})"
+    
+    # Get total number of scale items for determining complete runs
+    total_scale_items = len(expert_means) if expert_means else ScaleItem.query.filter_by(scale_id=scale_id).count()
+    
+    # Group by configuration: model + temperature + top_p + max_tokens + message_prompt + system_prompt
+    config_data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))  # config_key -> repeat_number -> item_key -> [scores]
+    
+    for result in results:
+        # Create configuration key
+        msg_prompt = str(result.message_prompt_id) if result.message_prompt_id else 'None'
+        sys_prompt = str(result.system_prompt_id) if result.system_prompt_id else 'None'
+        config_key = f"{result.model}|{result.temperature}|{result.top_p}|{result.max_tokens}|{msg_prompt}|{sys_prompt}"
+        
+        # Create item key
+        item_key = f"{int(result.scale_prompt_id)}{result.scale_response_id.upper()}"
+        
+        # Group by repeat number to count complete runs
+        repeat_num = result.repeat_number if result.repeat_number is not None else 0
+        
+        # Store score
+        config_data[config_key][repeat_num][item_key].append(result.score)
+    
+    # Calculate metrics for each configuration
+    performance_data = []
+    
+    for config_key, repeat_data in config_data.items():
+        model, temperature, top_p, max_tokens, msg_prompt, sys_prompt = config_key.split('|')
+        
+        # Count complete runs (runs with at least 80% of scale items)
+        complete_runs = 0
+        all_item_scores = defaultdict(list)  # Aggregate scores across all repeats
+        
+        for repeat_num, items in repeat_data.items():
+            # Check if this repeat has enough items to be considered complete
+            if len(items) >= total_scale_items * 0.8:
+                complete_runs += 1
+                # Aggregate scores from this complete run
+                for item_key, scores in items.items():
+                    all_item_scores[item_key].extend(scores)
+        
+        # Only include configurations with at least 10 complete runs
+        if complete_runs < 10:
+            continue
+        
+        # Calculate accuracy metrics (MAE, RMSE) vs expert
+        mae_diffs = []
+        rmse_diffs = []
+        
+        # Calculate consistency metrics
+        all_scores = []
+        item_means = []
+        
+        for item_key, scores in all_item_scores.items():
+            if scores and item_key in expert_means:
+                # For accuracy metrics
+                item_mean = sum(scores) / len(scores)
+                expert_mean = expert_means[item_key]
+                mae_diffs.append(abs(item_mean - expert_mean))
+                rmse_diffs.append((item_mean - expert_mean) ** 2)
+                
+                # For consistency metrics
+                all_scores.extend(scores)
+                item_means.append(item_mean)
+        
+        # Calculate final metrics
+        mae = np.mean(mae_diffs) if mae_diffs else None
+        rmse = np.sqrt(np.mean(rmse_diffs)) if rmse_diffs else None
+        
+        # Overall standard deviation of all scores
+        overall_sd = np.std(all_scores) if len(all_scores) > 1 else None
+        
+        # Krippendorff's alpha approximation using item-level agreement
+        # This is a simplified version treating items as units and repeats as raters
+        krippendorff_alpha = None
+        if len(all_item_scores) > 1:  # Need multiple items
+            # Calculate inter-item correlation as proxy for reliability
+            item_variances = []
+            for scores in all_item_scores.values():
+                if len(scores) > 1:
+                    item_variances.append(np.var(scores))
+            
+            if item_variances:
+                # Simplified reliability estimate based on consistency across items
+                mean_item_var = np.mean(item_variances)
+                total_var = np.var(all_scores) if len(all_scores) > 1 else 0
+                if total_var > 0:
+                    krippendorff_alpha = max(0, (total_var - mean_item_var) / total_var)
+        
+        # Get display names for prompts
+        msg_prompt_name = prompt_names.get(msg_prompt, 'None') if msg_prompt != 'None' else 'None'
+        sys_prompt_name = prompt_names.get(sys_prompt, 'None') if sys_prompt != 'None' else 'None'
+        
+        performance_data.append({
+            'model': model,
+            'temperature': float(temperature),
+            'top_p': float(top_p),
+            'max_tokens': int(max_tokens),
+            'message_prompt': msg_prompt_name,
+            'system_prompt': sys_prompt_name,
+            'n_runs': complete_runs,
+            'n_items': len(all_item_scores),
+            'mae': round(mae, 3) if mae is not None else None,
+            'rmse': round(rmse, 3) if rmse is not None else None,
+            'sd': round(overall_sd, 3) if overall_sd is not None else None,
+            'krippendorff_alpha': round(krippendorff_alpha, 3) if krippendorff_alpha is not None else None,
+            'color': get_model_color(model)
+        })
+    
+    # Sort by RMSE (ascending - better performance first)
+    performance_data.sort(key=lambda x: x['rmse'] if x['rmse'] is not None else float('inf'))
+    
+    return jsonify(performance_data)
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

@@ -268,6 +268,172 @@
             color: #6c757d;
             margin-top: 5px;
         }
+        
+        .performance-table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .table-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 150px;
+        }
+        
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background: white;
+            font-size: 14px;
+            color: #495057;
+            cursor: pointer;
+        }
+        
+        .filter-group select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        
+        .clear-filters-btn {
+            padding: 8px 16px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            align-self: end;
+            height: fit-content;
+        }
+        
+        .clear-filters-btn:hover {
+            background: #5a6268;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        
+        .performance-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        
+        .performance-table thead {
+            background: #f8f9fa;
+        }
+        
+        .performance-table th {
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+        }
+        
+        .performance-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .performance-table th.sortable:hover {
+            background: #e9ecef;
+        }
+        
+        .performance-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #f1f3f5;
+        }
+        
+        .performance-table tbody tr {
+            transition: background-color 0.2s;
+        }
+        
+        .performance-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .performance-table .model-cell {
+            font-weight: 500;
+            border-left: 4px solid;
+            padding-left: 12px;
+        }
+        
+        .performance-table .metric-cell {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            text-align: right;
+        }
+        
+        .performance-table .prompt-cell {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.85em;
+        }
+        
+        .info-icon {
+            display: inline-block;
+            margin-left: 5px;
+            font-size: 0.8em;
+            color: #666;
+            cursor: help;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .info-icon:hover {
+            opacity: 1;
+        }
+        
+        .sort-arrow {
+            display: inline-block;
+            margin-left: 8px;
+            font-size: 0.8em;
+            color: #999;
+            visibility: hidden;
+            min-width: 10px;
+        }
+        
+        .performance-table th.sorted-asc .sort-arrow::after {
+            content: "▲";
+            visibility: visible;
+            color: #667eea;
+        }
+        
+        .performance-table th.sorted-desc .sort-arrow::after {
+            content: "▼";
+            visibility: visible;
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -277,6 +443,127 @@
         <div class="header">
             <h1>{{ scale.name }}</h1>
             <p>{{ scale.description }}</p>
+        </div>
+        
+        <!-- Comprehensive Performance Table -->
+        <div class="performance-table-container">
+            <h2 class="chart-title">Model Performance Summary (All Configurations, N≥10)</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 20px; font-style: italic;">
+                Comprehensive performance across all model, prompt, and hyperparameter combinations.
+                Sorted by RMSE (lower is better).
+            </p>
+            
+            <!-- Table Filters -->
+            <div class="table-filters">
+                <div class="filter-group">
+                    <label>Model:</label>
+                    <select id="table-model-filter" onchange="applyTableFilters()">
+                        <option value="">All Models</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Temperature:</label>
+                    <select id="table-temperature-filter" onchange="applyTableFilters()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Top-p:</label>
+                    <select id="table-top-p-filter" onchange="applyTableFilters()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Max Tokens:</label>
+                    <select id="table-max-tokens-filter" onchange="applyTableFilters()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Message Prompt:</label>
+                    <select id="table-message-prompt-filter" onchange="applyTableFilters()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>System Prompt:</label>
+                    <select id="table-system-prompt-filter" onchange="applyTableFilters()">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button onclick="clearTableFilters()" class="clear-filters-btn">Clear All Filters</button>
+                </div>
+            </div>
+            
+            <div class="table-wrapper">
+                <table class="performance-table" id="performance-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-column="model">
+                                Model 
+                                <span class="info-icon" title="Language model used for evaluation">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="temperature">
+                                Temp 
+                                <span class="info-icon" title="Temperature parameter (0=deterministic, 1=creative). Controls randomness in model outputs.">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="top_p">
+                                Top-p 
+                                <span class="info-icon" title="Nucleus sampling parameter (0.1-1.0). Controls diversity by considering only the top probability mass of tokens.">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="max_tokens">
+                                Max Tokens 
+                                <span class="info-icon" title="Maximum number of tokens the model is allowed to generate in its response">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="message_prompt">
+                                Message Prompt 
+                                <span class="info-icon" title="The specific message prompt used to query the model for this evaluation">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="system_prompt">
+                                System Prompt 
+                                <span class="info-icon" title="The system-level instructions provided to the model (if any)">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="n_runs">
+                                N Runs 
+                                <span class="info-icon" title="Number of complete scale runs (each run covers ≥80% of scale items). Only configurations with ≥10 complete runs are shown.">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="mae">
+                                MAE 
+                                <span class="info-icon" title="Mean Absolute Error vs expert ratings. Average of |model_score - expert_score| across all items. Lower is better (perfect = 0).">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="rmse">
+                                RMSE 
+                                <span class="info-icon" title="Root Mean Square Error vs expert ratings. Square root of average squared differences. Penalizes large errors more than MAE. Lower is better (perfect = 0).">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="sd">
+                                SD 
+                                <span class="info-icon" title="Standard Deviation of all individual scores. Measures response consistency/variability. Lower values indicate more consistent responses.">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                            <th class="sortable" data-column="krippendorff_alpha">
+                                α 
+                                <span class="info-icon" title="Krippendorff's Alpha approximation. Inter-rater reliability treating repeat evaluations as separate raters. Values: 0=no agreement, 1=perfect agreement. Higher is better.">ℹ️</span>
+                                <span class="sort-arrow"></span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="performance-table-body">
+                        <tr>
+                            <td colspan="10" class="loading">Loading performance data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <div class="controls">
@@ -890,9 +1177,249 @@
             }
         }
         
+        let tableData = []; // Store original data for filtering
+        
+        async function loadPerformanceTable() {
+            try {
+                const response = await fetch(`/api/scale/${scaleId}/performance-table`);
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    document.getElementById('performance-table-body').innerHTML = 
+                        '<tr><td colspan="11" class="loading">No configurations with N≥10 complete runs found</td></tr>';
+                    return;
+                }
+                
+                // Store data for filtering
+                tableData = data;
+                
+                // Populate filter options
+                populateTableFilters(data);
+                
+                // Render table with all data initially
+                renderTable(data);
+                
+                // Add sorting functionality
+                addTableSorting();
+                
+                // Set initial sort arrow (RMSE ascending by default)
+                updateSortArrows('rmse', 'asc');
+                
+            } catch (error) {
+                console.error('Error loading performance table:', error);
+                document.getElementById('performance-table-body').innerHTML = 
+                    '<tr><td colspan="11" class="loading">Error loading performance data</td></tr>';
+            }
+        }
+        
+        function populateTableFilters(data) {
+            // Get unique values for each filter
+            const models = [...new Set(data.map(row => row.model))].sort();
+            const temperatures = [...new Set(data.map(row => row.temperature))].sort((a, b) => a - b);
+            const topPs = [...new Set(data.map(row => row.top_p))].sort((a, b) => a - b);
+            const maxTokens = [...new Set(data.map(row => row.max_tokens))].sort((a, b) => a - b);
+            const messagePrompts = [...new Set(data.map(row => row.message_prompt))].sort();
+            const systemPrompts = [...new Set(data.map(row => row.system_prompt))].sort();
+            
+            // Populate model filter
+            const modelSelect = document.getElementById('table-model-filter');
+            modelSelect.innerHTML = '<option value="">All Models</option>';
+            models.forEach(model => {
+                modelSelect.innerHTML += `<option value="${model}">${model}</option>`;
+            });
+            
+            // Populate temperature filter
+            const tempSelect = document.getElementById('table-temperature-filter');
+            tempSelect.innerHTML = '<option value="">All</option>';
+            temperatures.forEach(temp => {
+                tempSelect.innerHTML += `<option value="${temp}">${temp}</option>`;
+            });
+            
+            // Populate top-p filter
+            const topPSelect = document.getElementById('table-top-p-filter');
+            topPSelect.innerHTML = '<option value="">All</option>';
+            topPs.forEach(topP => {
+                topPSelect.innerHTML += `<option value="${topP}">${topP}</option>`;
+            });
+            
+            // Populate max tokens filter
+            const maxTokensSelect = document.getElementById('table-max-tokens-filter');
+            maxTokensSelect.innerHTML = '<option value="">All</option>';
+            maxTokens.forEach(tokens => {
+                maxTokensSelect.innerHTML += `<option value="${tokens}">${tokens}</option>`;
+            });
+            
+            // Populate message prompt filter
+            const msgPromptSelect = document.getElementById('table-message-prompt-filter');
+            msgPromptSelect.innerHTML = '<option value="">All</option>';
+            messagePrompts.forEach(prompt => {
+                const displayText = prompt.length > 30 ? prompt.substring(0, 30) + '...' : prompt;
+                msgPromptSelect.innerHTML += `<option value="${prompt}" title="${prompt}">${displayText}</option>`;
+            });
+            
+            // Populate system prompt filter
+            const sysPromptSelect = document.getElementById('table-system-prompt-filter');
+            sysPromptSelect.innerHTML = '<option value="">All</option>';
+            systemPrompts.forEach(prompt => {
+                const displayText = prompt.length > 30 ? prompt.substring(0, 30) + '...' : prompt;
+                sysPromptSelect.innerHTML += `<option value="${prompt}" title="${prompt}">${displayText}</option>`;
+            });
+        }
+        
+        function renderTable(data) {
+            const tableBody = document.getElementById('performance-table-body');
+            tableBody.innerHTML = '';
+            
+            data.forEach((row, index) => {
+                const tr = document.createElement('tr');
+                
+                tr.innerHTML = `
+                    <td class="model-cell" style="border-left-color: ${row.color}">${row.model}</td>
+                    <td>${row.temperature}</td>
+                    <td>${row.top_p}</td>
+                    <td>${row.max_tokens}</td>
+                    <td class="prompt-cell" title="${row.message_prompt}">${row.message_prompt}</td>
+                    <td class="prompt-cell" title="${row.system_prompt}">${row.system_prompt}</td>
+                    <td class="metric-cell">${row.n_runs}</td>
+                    <td class="metric-cell">${row.mae !== null ? row.mae : '—'}</td>
+                    <td class="metric-cell">${row.rmse !== null ? row.rmse : '—'}</td>
+                    <td class="metric-cell">${row.sd !== null ? row.sd : '—'}</td>
+                    <td class="metric-cell">${row.krippendorff_alpha !== null ? row.krippendorff_alpha : '—'}</td>
+                `;
+                
+                // Add rank-based styling for top performers
+                if (index < 3) {
+                    tr.style.backgroundColor = '#f0f8f0';
+                }
+                
+                tableBody.appendChild(tr);
+            });
+        }
+        
+        function addTableSorting() {
+            const headers = document.querySelectorAll('.performance-table th.sortable');
+            
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const column = header.dataset.column;
+                    sortTable(column);
+                });
+            });
+        }
+        
+        let currentSortColumn = 'rmse';  // Default sort column
+        let currentSortDirection = 'asc'; // Default sort direction
+        
+        function sortTable(column) {
+            // Determine sort direction
+            let sortDirection = 'asc';
+            if (currentSortColumn === column) {
+                // Toggle direction if clicking the same column
+                sortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                // Default direction for different columns
+                const defaultDesc = ['krippendorff_alpha']; // Higher is better for alpha
+                sortDirection = defaultDesc.includes(column) ? 'desc' : 'asc';
+            }
+            
+            currentSortColumn = column;
+            currentSortDirection = sortDirection;
+            
+            // Apply current filters and then sort
+            applyTableFilters();
+        }
+        
+        function updateSortArrows(activeColumn, direction) {
+            // Remove all existing sort classes
+            const headers = document.querySelectorAll('.performance-table th.sortable');
+            headers.forEach(header => {
+                header.classList.remove('sorted-asc', 'sorted-desc');
+            });
+            
+            // Add appropriate class to active column
+            const activeHeader = document.querySelector(`[data-column="${activeColumn}"]`);
+            if (activeHeader) {
+                activeHeader.classList.add(direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        }
+        
+        function getCellValue(row, column) {
+            const columnIndex = {
+                'model': 0, 'temperature': 1, 'top_p': 2, 'max_tokens': 3, 'message_prompt': 4, 
+                'system_prompt': 5, 'n_runs': 6, 'mae': 7, 'rmse': 8, 'sd': 9, 'krippendorff_alpha': 10
+            };
+            return row.cells[columnIndex[column]].textContent.trim();
+        }
+        
+        function applyTableFilters() {
+            const modelFilter = document.getElementById('table-model-filter').value;
+            const tempFilter = document.getElementById('table-temperature-filter').value;
+            const topPFilter = document.getElementById('table-top-p-filter').value;
+            const maxTokensFilter = document.getElementById('table-max-tokens-filter').value;
+            const msgPromptFilter = document.getElementById('table-message-prompt-filter').value;
+            const sysPromptFilter = document.getElementById('table-system-prompt-filter').value;
+            
+            let filteredData = tableData.filter(row => {
+                return (!modelFilter || row.model === modelFilter) &&
+                       (!tempFilter || row.temperature.toString() === tempFilter) &&
+                       (!topPFilter || row.top_p.toString() === topPFilter) &&
+                       (!maxTokensFilter || row.max_tokens.toString() === maxTokensFilter) &&
+                       (!msgPromptFilter || row.message_prompt === msgPromptFilter) &&
+                       (!sysPromptFilter || row.system_prompt === sysPromptFilter);
+            });
+            
+            // Re-sort by current sort column and direction
+            if (currentSortColumn) {
+                applySortToData(filteredData, currentSortColumn, currentSortDirection);
+            }
+            
+            renderTable(filteredData);
+            
+            // Update sort arrows to maintain current sort
+            if (currentSortColumn) {
+                updateSortArrows(currentSortColumn, currentSortDirection);
+            }
+        }
+        
+        function clearTableFilters() {
+            document.getElementById('table-model-filter').value = '';
+            document.getElementById('table-temperature-filter').value = '';
+            document.getElementById('table-top-p-filter').value = '';
+            document.getElementById('table-max-tokens-filter').value = '';
+            document.getElementById('table-message-prompt-filter').value = '';
+            document.getElementById('table-system-prompt-filter').value = '';
+            
+            // Show all data
+            applyTableFilters();
+        }
+        
+        function applySortToData(data, column, direction) {
+            const isNumeric = ['temperature', 'top_p', 'max_tokens', 'n_runs', 'mae', 'rmse', 'sd', 'krippendorff_alpha'].includes(column);
+            
+            data.sort((a, b) => {
+                let aValue = a[column];
+                let bValue = b[column];
+                
+                // Handle null values
+                if (aValue === null && bValue === null) return 0;
+                if (aValue === null) return 1;
+                if (bValue === null) return -1;
+                
+                let result;
+                if (isNumeric) {
+                    result = parseFloat(aValue) - parseFloat(bValue);
+                } else {
+                    result = aValue.localeCompare(bValue);
+                }
+                
+                return direction === 'desc' ? -result : result;
+            });
+        }
+        
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
             await loadParameters();
+            await loadPerformanceTable();
             await updateCharts();
         });
     </script>
