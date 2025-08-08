@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ scale.name }} - Detailed Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .back-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        
+        .back-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .controls {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .control-group {
+            display: inline-block;
+            margin-right: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .control-group select {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            min-width: 150px;
+        }
+        
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .update-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .update-button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .prompt-display {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .prompt-display h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .prompt-display pre {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 0;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .chart-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+        
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 12px;
+            border-radius: 3px;
+        }
+        
+        .legend-label {
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        .stats-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .stat-card {
+            padding: 15px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-button">← Back to Leaderboard</a>
+        
+        <div class="header">
+            <h1>{{ scale.name }}</h1>
+            <p>{{ scale.description }}</p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Temperature</label>
+                <select id="temperature" onchange="updateCharts()">
+                    <option value="1.0">1.0</option>
+                    <option value="0.0">0.0</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Top-p</label>
+                <select id="top_p" onchange="updateCharts()">
+                    <option value="">All</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Min Runs</label>
+                <select id="min_runs" onchange="updateCharts()">
+                    <option value="0">All</option>
+                    <option value="1">1+</option>
+                    <option value="5">5+</option>
+                    <option value="10" selected>10+</option>
+                    <option value="25">25+</option>
+                    <option value="50">50+</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>System Prompt</label>
+                <select id="system_prompt_id" title="Select a specific system prompt to filter by" onchange="displayPromptContent(); updateCharts()">
+                    <option value="">All System Prompts</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Message Prompt</label>
+                <select id="message_prompt_id" title="Select a specific message prompt to filter by" onchange="displayPromptContent(); updateCharts()">
+                    <option value="">All Message Prompts</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Prompt content display area -->
+        <div id="prompt-display" class="prompt-display" style="display: none;">
+            <div id="system-prompt-section" style="display: none;">
+                <h3>Selected System Prompt:</h3>
+                <pre id="system-prompt-content"></pre>
+            </div>
+            <div id="message-prompt-section" style="display: none; margin-top: 20px;">
+                <h3>Selected Message Prompt:</h3>
+                <pre id="message-prompt-content"></pre>
+            </div>
+        </div>
+        
+        <!-- Chart sections for questions 1-6, 7-12, 13-18, 19-25 -->
+        <div class="chart-container">
+            <h2 class="chart-title" id="chart1-title">Questions 1-6</h2>
+            <div class="chart-wrapper">
+                <canvas id="chart1"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h2 class="chart-title" id="chart2-title">Questions 7-12</h2>
+            <div class="chart-wrapper">
+                <canvas id="chart2"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h2 class="chart-title" id="chart3-title">Questions 13-18</h2>
+            <div class="chart-wrapper">
+                <canvas id="chart3"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h2 class="chart-title" id="chart4-title">Questions 19-25</h2>
+            <div class="chart-wrapper">
+                <canvas id="chart4"></canvas>
+            </div>
+        </div>
+        
+        <div class="stats-container">
+            <h2 class="chart-title">Summary Statistics</h2>
+            <div class="stats-grid" id="stats-grid">
+                <!-- Stats will be populated here -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const scaleId = '{{ scale.id }}';
+        const scaleName = '{{ scale.name }}';
+        let charts = {};
+        
+        // Color mapping for models
+        function getModelColor(modelName) {
+            const model = modelName.toLowerCase();
+            
+            // Expert - green
+            if (model === 'expert') return 'rgba(76, 175, 80, 0.8)';
+            
+            // GPT family - blues
+            if (model.includes('gpt-3.5')) return 'rgba(227, 242, 253, 0.8)';
+            if (model.includes('gpt-4o')) return 'rgba(144, 202, 249, 0.8)';
+            if (model.includes('o1')) return 'rgba(66, 165, 245, 0.8)';
+            if (model.includes('o4')) return 'rgba(30, 136, 229, 0.8)';
+            if (model.includes('gpt')) return 'rgba(33, 150, 243, 0.8)';
+            
+            // Claude family - oranges
+            if (model.includes('haiku')) return 'rgba(255, 243, 224, 0.8)';
+            if (model.includes('sonnet')) return 'rgba(255, 204, 128, 0.8)';
+            if (model.includes('opus')) return 'rgba(255, 152, 0, 0.8)';
+            if (model.includes('claude')) return 'rgba(255, 183, 77, 0.8)';
+            
+            // Gemini family - purples
+            if (model.includes('flash')) return 'rgba(243, 229, 245, 0.8)';
+            if (model.includes('pro')) return 'rgba(156, 39, 176, 0.8)';
+            if (model.includes('gemini')) return 'rgba(186, 104, 200, 0.8)';
+            
+            return 'rgba(158, 158, 158, 0.8)';
+        }
+        
+        async function loadParameters() {
+            try {
+                const response = await fetch('/api/parameters');
+                const data = await response.json();
+                
+                // Update temperature dropdown
+                const tempSelect = document.getElementById('temperature');
+                tempSelect.innerHTML = '';
+                data.temperatures.forEach(temp => {
+                    const option = document.createElement('option');
+                    option.value = temp;
+                    option.textContent = temp;
+                    if (temp === 0.0) option.selected = true; // Set 0 as default
+                    tempSelect.appendChild(option);
+                });
+                
+                // Update top-p dropdown
+                const topPSelect = document.getElementById('top_p');
+                topPSelect.innerHTML = '';
+                const allTopPOption = document.createElement('option');
+                allTopPOption.value = '';
+                allTopPOption.textContent = 'All';
+                allTopPOption.selected = true;
+                topPSelect.appendChild(allTopPOption);
+                
+                data.top_ps.forEach(top_p => {
+                    const option = document.createElement('option');
+                    option.value = top_p;
+                    option.textContent = top_p;
+                    if (top_p === 1.0) option.selected = true; // Set 1.0 as default
+                    topPSelect.appendChild(option);
+                });
+                
+                // Update prompt dropdowns and store full content
+                const messagePromptSelect = document.getElementById('message_prompt_id');
+                const systemPromptSelect = document.getElementById('system_prompt_id');
+                
+                messagePromptSelect.innerHTML = '';
+                systemPromptSelect.innerHTML = '';
+                
+                const allMessageOption = document.createElement('option');
+                allMessageOption.value = '';
+                allMessageOption.textContent = 'All Message Prompts';
+                allMessageOption.selected = true;
+                messagePromptSelect.appendChild(allMessageOption);
+                
+                if (data.has_null_message_prompts) {
+                    const noneMessageOption = document.createElement('option');
+                    noneMessageOption.value = 'none';
+                    noneMessageOption.textContent = 'None';
+                    messagePromptSelect.appendChild(noneMessageOption);
+                }
+                
+                const allSystemOption = document.createElement('option');
+                allSystemOption.value = '';
+                allSystemOption.textContent = 'All System Prompts';
+                allSystemOption.selected = true;
+                systemPromptSelect.appendChild(allSystemOption);
+                
+                // Add None options if there are results with null prompt values
+                if (data.has_null_system_prompts) {
+                    const noneSystemOption = document.createElement('option');
+                    noneSystemOption.value = 'none';
+                    noneSystemOption.textContent = 'None';
+                    systemPromptSelect.appendChild(noneSystemOption);
+                }
+                
+                // Store prompts data globally for content display
+                window.messagePromptsData = {};
+                window.systemPromptsData = {};
+                
+                data.prompts.forEach(prompt => {
+                    const option = document.createElement('option');
+                    option.value = prompt.id;
+                    option.textContent = prompt.name;
+                    option.title = prompt.content_preview; // Show preview on hover
+                    
+                    if (prompt.type === 'message') {
+                        messagePromptSelect.appendChild(option.cloneNode(true));
+                        window.messagePromptsData[prompt.id] = prompt.full_content || prompt.content_preview;
+                    } else if (prompt.type === 'system') {
+                        systemPromptSelect.appendChild(option.cloneNode(true));
+                        window.systemPromptsData[prompt.id] = prompt.full_content || prompt.content_preview;
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading parameters:', error);
+            }
+        }
+        
+        function displayPromptContent() {
+            const messagePromptId = document.getElementById('message_prompt_id').value;
+            const systemPromptId = document.getElementById('system_prompt_id').value;
+            
+            const displayArea = document.getElementById('prompt-display');
+            const messageSection = document.getElementById('message-prompt-section');
+            const systemSection = document.getElementById('system-prompt-section');
+            const messageContent = document.getElementById('message-prompt-content');
+            const systemContent = document.getElementById('system-prompt-content');
+            
+            let showDisplay = false;
+            
+            // Handle message prompt
+            if (messagePromptId && window.messagePromptsData && window.messagePromptsData[messagePromptId]) {
+                messageContent.textContent = window.messagePromptsData[messagePromptId];
+                messageSection.style.display = 'block';
+                showDisplay = true;
+            } else {
+                messageSection.style.display = 'none';
+            }
+            
+            // Handle system prompt
+            if (systemPromptId && window.systemPromptsData && window.systemPromptsData[systemPromptId]) {
+                systemContent.textContent = window.systemPromptsData[systemPromptId];
+                systemSection.style.display = 'block';
+                showDisplay = true;
+            } else {
+                systemSection.style.display = 'none';
+            }
+            
+            displayArea.style.display = showDisplay ? 'block' : 'none';
+        }
+        
+        async function updateCharts() {
+            const temperature = parseFloat(document.getElementById('temperature').value);
+            const topP = document.getElementById('top_p').value;
+            const minRuns = parseInt(document.getElementById('min_runs').value) || 0;
+            const messagePromptId = document.getElementById('message_prompt_id').value;
+            const systemPromptId = document.getElementById('system_prompt_id').value;
+            
+            try {
+                // Build URL with parameters
+                let url = `/api/scale/${scaleId}/plot?temperature=${temperature}`;
+                if (topP) {
+                    url += `&top_p=${topP}`;
+                }
+                if (messagePromptId) {
+                    if (messagePromptId === 'none') {
+                        url += '&message_prompt_id=null';
+                    } else {
+                        url += `&message_prompt_id=${messagePromptId}`;
+                    }
+                }
+                if (systemPromptId) {
+                    if (systemPromptId === 'none') {
+                        url += '&system_prompt_id=null';
+                    } else {
+                        url += `&system_prompt_id=${systemPromptId}`;
+                    }
+                }
+                // Note: min_runs will be used for filtering on frontend
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                // Split items into 4 groups
+                // Items are: 1A,1B,2A,2B...13A,13B,15A,15B...25A,25B (14 is skipped)
+                // That's 2 items per question, with question 14 missing
+                const itemGroups = [
+                    data.items.slice(0, 12),   // Questions 1-6 (items 0-11: 1A,1B...6A,6B)
+                    data.items.slice(12, 24),  // Questions 7-12 (items 12-23: 7A,7B...12A,12B)
+                    data.items.slice(24, 36),  // Questions 13,15-18 (items 24-35: 13A,13B,15A,15B...18A,18B)
+                    data.items.slice(36)       // Questions 19-25 (items 36-47: 19A,19B...25A,25B)
+                ];
+                
+                // Update chart titles
+                let promptName = 'all prompts';
+                if (messagePromptId || systemPromptId) {
+                    const parts = [];
+                    if (systemPromptId) {
+                        parts.push('S: ' + document.getElementById('system_prompt_id').selectedOptions[0].textContent);
+                    }
+                    if (messagePromptId) {
+                        parts.push('M: ' + document.getElementById('message_prompt_id').selectedOptions[0].textContent);
+                    }
+                    promptName = parts.join(', ');
+                }
+                document.getElementById('chart1-title').textContent = `Questions 1-6 (${promptName}, T = ${temperature})`;
+                document.getElementById('chart2-title').textContent = `Questions 7-12 (${promptName}, T = ${temperature})`;
+                document.getElementById('chart3-title').textContent = `Questions 13, 15-18 (${promptName}, T = ${temperature})`;
+                document.getElementById('chart4-title').textContent = `Questions 19-25 (${promptName}, T = ${temperature})`;
+                
+                // Create or update charts
+                itemGroups.forEach((items, index) => {
+                    const chartId = `chart${index + 1}`;
+                    const ctx = document.getElementById(chartId).getContext('2d');
+                    
+                    // Prepare datasets
+                    const datasets = data.models.map(model => {
+                        const modelData = items.map(item => data.data[item] ? data.data[item][model] || null : null);
+                        
+                        return {
+                            label: model,
+                            data: modelData,
+                            backgroundColor: getModelColor(model),
+                            borderColor: getModelColor(model).replace('0.8', '1'),
+                            borderWidth: 1
+                        };
+                    });
+                    
+                    // Destroy existing chart if it exists
+                    if (charts[chartId]) {
+                        charts[chartId].destroy();
+                    }
+                    
+                    // Create new chart
+                    charts[chartId] = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: items,
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const value = context.parsed.y;
+                                            return value !== null ? 
+                                                `${context.dataset.label}: ${value.toFixed(2)}` : 
+                                                `${context.dataset.label}: No data`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: false,
+                                    min: -3,
+                                    max: 3,
+                                    title: {
+                                        display: true,
+                                        text: 'Mean Score'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Item'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+                
+                // Update statistics
+                updateStatistics(data);
+                
+            } catch (error) {
+                console.error('Error updating charts:', error);
+            }
+        }
+        
+        function updateStatistics(data) {
+            const statsGrid = document.getElementById('stats-grid');
+            statsGrid.innerHTML = '';
+            
+            // Calculate statistics
+            const modelStats = {};
+            
+            data.models.forEach(model => {
+                if (model === 'Expert') return;
+                
+                let validCount = 0;
+                let sumSquaredDiff = 0;
+                
+                data.items.forEach(item => {
+                    if (data.data[item] && data.data[item][model] !== null && data.data[item]['Expert'] !== null) {
+                        const diff = data.data[item][model] - data.data[item]['Expert'];
+                        sumSquaredDiff += diff * diff;
+                        validCount++;
+                    }
+                });
+                
+                if (validCount > 0) {
+                    modelStats[model] = {
+                        rmse: Math.sqrt(sumSquaredDiff / validCount),
+                        coverage: validCount / data.items.length
+                    };
+                }
+            });
+            
+            // Sort by RMSE
+            const sortedModels = Object.entries(modelStats)
+                .sort((a, b) => a[1].rmse - b[1].rmse)
+                .slice(0, 6); // Top 6 models
+            
+            // Display stats
+            sortedModels.forEach(([model, stats], index) => {
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.style.background = getModelColor(model).replace('0.8', '0.1');
+                
+                card.innerHTML = `
+                    <div class="stat-value">${stats.rmse.toFixed(3)}</div>
+                    <div class="stat-label">${model}</div>
+                    <div class="stat-label" style="font-size: 0.8em;">Coverage: ${(stats.coverage * 100).toFixed(0)}%</div>
+                `;
+                
+                statsGrid.appendChild(card);
+            });
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadParameters();
+            await updateCharts();
+        });
+    </script>
+</body>
+</html>
