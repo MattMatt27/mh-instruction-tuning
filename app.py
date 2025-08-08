@@ -623,12 +623,92 @@ def get_scale_plot_data(scale_id):
     color_map = {model: get_model_color(model) for model in ordered_models}
     color_map['Expert'] = '#4CAF50'  # Green for expert
     
+    # Calculate additional metrics (overall accuracy and consistency)
+    # Get raw scores for consistency calculation
+    raw_query = db.session.query(
+        Result.model,
+        Result.scale_prompt_id,
+        Result.scale_response_id,
+        Result.score
+    ).join(Experiment).filter(
+        Experiment.scale_id == scale_id,
+        Result.temperature == temperature
+    )
+    
+    # Apply same filters as main query
+    if top_p is not None:
+        raw_query = raw_query.filter(Result.top_p == top_p)
+    if message_prompt_id:
+        if message_prompt_id == 'null':
+            raw_query = raw_query.filter(Result.message_prompt_id.is_(None))
+        else:
+            from uuid import UUID
+            try:
+                prompt_uuid = UUID(message_prompt_id)
+                raw_query = raw_query.filter(Result.message_prompt_id == prompt_uuid)
+            except ValueError:
+                pass
+    if system_prompt_id:
+        if system_prompt_id == 'null':
+            raw_query = raw_query.filter(Result.system_prompt_id.is_(None))
+        else:
+            from uuid import UUID
+            try:
+                prompt_uuid = UUID(system_prompt_id)
+                raw_query = raw_query.filter(Result.system_prompt_id == prompt_uuid)
+            except ValueError:
+                pass
+    
+    raw_results = raw_query.all()
+    
+    # Calculate overall accuracy (RMSE) and consistency (mean SD) for each model
+    model_metrics = {}
+    for model in ordered_models:
+        if model == 'Expert':
+            continue
+            
+        # Overall accuracy (RMSE vs expert)
+        rmse_diffs = []
+        consistency_data = defaultdict(list)  # item_key -> [scores]
+        
+        for item in items_order:
+            if item in plot_data and model in plot_data[item] and 'Expert' in plot_data[item]:
+                model_score = plot_data[item][model]
+                expert_score = plot_data[item]['Expert']
+                if model_score is not None and expert_score is not None:
+                    rmse_diffs.append((model_score - expert_score) ** 2)
+        
+        # Consistency: collect all raw scores for each item
+        for raw_result in raw_results:
+            if raw_result.model == model:
+                item_key = f"{int(raw_result.scale_prompt_id)}{raw_result.scale_response_id.upper()}"
+                if item_key in items_order:
+                    consistency_data[item_key].append(raw_result.score)
+        
+        # Calculate metrics
+        overall_rmse = np.sqrt(np.mean(rmse_diffs)) if rmse_diffs else None
+        
+        # Calculate mean standard deviation across all items for consistency
+        item_sds = []
+        for item_scores in consistency_data.values():
+            if len(item_scores) > 1:  # Need at least 2 scores to calculate SD
+                item_sds.append(np.std(item_scores))
+        
+        mean_consistency = np.mean(item_sds) if item_sds else None
+        
+        model_metrics[model] = {
+            'overall_rmse': overall_rmse,
+            'consistency': mean_consistency,
+            'coverage': len(rmse_diffs) / len(items_order) if items_order else 0
+        }
+    
     # Format for frontend
     formatted_data = {
         'items': items_order,
         'models': ordered_models,
         'colors': color_map,
         'data': plot_data,
+        'model_metrics': model_metrics,
         'temperature': temperature,
         'message_prompt_id': message_prompt_id,
         'system_prompt_id': system_prompt_id,

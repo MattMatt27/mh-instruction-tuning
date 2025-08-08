@@ -196,6 +196,60 @@
             gap: 20px;
         }
         
+        .metrics-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .metrics-row {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+        
+        .metric-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .metric-section h3 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .metric-description {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .top-performers {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.85em;
+        }
+        
+        .top-performers h4 {
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 1em;
+        }
+        
+        .top-performers .performer {
+            margin: 3px 0;
+            color: #555;
+        }
+        
+        
         .stat-card {
             padding: 15px;
             border-radius: 10px;
@@ -310,9 +364,36 @@
         </div>
         
         <div class="stats-container">
-            <h2 class="chart-title">Summary Statistics</h2>
-            <div class="stats-grid" id="stats-grid">
-                <!-- Stats will be populated here -->
+            <h2 class="chart-title">Overall Performance Metrics</h2>
+            
+            <div class="metrics-row">
+                <!-- Overall Accuracy Chart -->
+                <div class="metric-section">
+                    <h3 class="chart-title">Overall Accuracy (RMSE vs Expert)</h3>
+                    <p class="metric-description">
+                        Root Mean Square Error across all scale items. Lower values indicate better agreement with expert ratings.
+                    </p>
+                    <div class="chart-wrapper" style="height: 300px;">
+                        <canvas id="accuracy-chart"></canvas>
+                    </div>
+                    <div class="top-performers" id="accuracy-top3">
+                        <!-- Top 3 accuracy performers will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Consistency Chart -->
+                <div class="metric-section">
+                    <h3 class="chart-title">Response Consistency (Mean SD)</h3>
+                    <p class="metric-description">
+                        Mean standard deviation of scores within each scale item. Lower values indicate more consistent responses.
+                    </p>
+                    <div class="chart-wrapper" style="height: 300px;">
+                        <canvas id="consistency-chart"></canvas>
+                    </div>
+                    <div class="top-performers" id="consistency-top3">
+                        <!-- Top 3 consistency performers will be populated here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -602,6 +683,7 @@
                 });
                 
                 // Update statistics
+                updateOverallMetrics(data);
                 updateStatistics(data);
                 
             } catch (error) {
@@ -657,6 +739,155 @@
                 
                 statsGrid.appendChild(card);
             });
+        }
+        
+        function updateOverallMetrics(data) {
+            if (!data.model_metrics) return;
+            
+            // Prepare data for charts - filter out Expert and null values
+            const accuracyData = Object.entries(data.model_metrics)
+                .filter(([model, metrics]) => model !== 'Expert' && metrics.overall_rmse !== null)
+                .sort((a, b) => a[1].overall_rmse - b[1].overall_rmse);
+            
+            const consistencyData = Object.entries(data.model_metrics)
+                .filter(([model, metrics]) => model !== 'Expert' && metrics.consistency !== null)
+                .sort((a, b) => a[1].consistency - b[1].consistency);
+            
+            // Create accuracy chart
+            if (accuracyData.length > 0) {
+                const accuracyCtx = document.getElementById('accuracy-chart').getContext('2d');
+                
+                // Destroy existing chart if it exists
+                if (charts['accuracy']) {
+                    charts['accuracy'].destroy();
+                }
+                
+                const labels = accuracyData.map(([model, metrics]) => model);
+                const values = accuracyData.map(([model, metrics]) => metrics.overall_rmse);
+                const colors = labels.map(model => getModelColor(model));
+                
+                charts['accuracy'] = new Chart(accuracyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'RMSE vs Expert',
+                            data: values,
+                            backgroundColor: colors,
+                            borderColor: colors.map(color => color.replace('0.8', '1')),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `RMSE: ${context.parsed.y.toFixed(3)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'RMSE (Lower is Better)'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Update top 3 accuracy performers
+                const accuracyTop3 = document.getElementById('accuracy-top3');
+                accuracyTop3.innerHTML = `
+                    <h4>Top 3 Performers:</h4>
+                    ${accuracyData.slice(0, 3).map((entry, idx) => 
+                        `<div class="performer">${idx + 1}. ${entry[0]}: ${entry[1].overall_rmse.toFixed(3)}</div>`
+                    ).join('')}
+                `;
+            }
+            
+            // Create consistency chart
+            if (consistencyData.length > 0) {
+                const consistencyCtx = document.getElementById('consistency-chart').getContext('2d');
+                
+                // Destroy existing chart if it exists
+                if (charts['consistency']) {
+                    charts['consistency'].destroy();
+                }
+                
+                const labels = consistencyData.map(([model, metrics]) => model);
+                const values = consistencyData.map(([model, metrics]) => metrics.consistency);
+                const colors = labels.map(model => getModelColor(model));
+                
+                charts['consistency'] = new Chart(consistencyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Mean Standard Deviation',
+                            data: values,
+                            backgroundColor: colors,
+                            borderColor: colors.map(color => color.replace('0.8', '1')),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Mean SD: ${context.parsed.y.toFixed(3)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Mean Standard Deviation (Lower is Better)'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Update top 3 consistency performers
+                const consistencyTop3 = document.getElementById('consistency-top3');
+                consistencyTop3.innerHTML = `
+                    <h4>Top 3 Performers:</h4>
+                    ${consistencyData.slice(0, 3).map((entry, idx) => 
+                        `<div class="performer">${idx + 1}. ${entry[0]}: ${entry[1].consistency.toFixed(3)}</div>`
+                    ).join('')}
+                `;
+            }
         }
         
         // Initialize on page load
